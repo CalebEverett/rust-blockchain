@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-pub async fn records() -> Result<Vec<schema::Record>, Box<dyn std::error::Error>> {
+pub async fn records(
+    num: u16,
+    write: bool,
+) -> Result<Vec<schema::Record>, Box<dyn std::error::Error>> {
     let fields: Vec<&str> = vec![
         "id",
         "projectId",
@@ -17,7 +20,7 @@ pub async fn records() -> Result<Vec<schema::Record>, Box<dyn std::error::Error>
         "website",
     ];
 
-    let records = get_projects(fields).await?;
+    let records = get_projects(&fields, num).await?;
     // let deserialized: Data = serde_json::from_str(&projects).unwrap();
     // fn deser_script_string(record: &mut Record) -> () {
     //     record.script_json = serde_json::from_str(&record.script_json_string).unwrap();
@@ -26,6 +29,15 @@ pub async fn records() -> Result<Vec<schema::Record>, Box<dyn std::error::Error>
     // projects.iter_mut().for_each(|r| deser_script_string(r));
 
     // println!("{:?}", projects);
+    if write {
+        let mut wtr = csv::Writer::from_path("projects.csv")?;
+        wtr.write_record(&fields)?;
+        for r in &records {
+            wtr.serialize(r)?;
+        }
+        wtr.flush()?
+    }
+
     Ok(records)
 }
 
@@ -55,11 +67,11 @@ pub mod schema {
     #[serde_with::serde_as]
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Record {
-        id: Option<String>,
+        pub id: Option<String>,
         #[serde(rename = "projectId")]
         #[serde_as(as = "DisplayFromStr")]
-        project_id: u32,
-        name: Option<String>,
+        pub project_id: u32,
+        pub name: Option<String>,
         #[serde(rename = "artistName")]
         artist_name: Option<String>,
         #[serde(rename = "curationStatus")]
@@ -72,6 +84,7 @@ pub mod schema {
         dynamic: bool,
         #[serde(rename = "scriptJSON")]
         script_json_string: Option<String>,
+        #[serde(skip_serializing)]
         #[serde(skip_deserializing)]
         script_json: ScriptJSON,
         website: Option<String>,
@@ -92,15 +105,17 @@ pub mod schema {
 }
 
 async fn get_projects(
-    fields: Vec<&str>,
+    fields: &Vec<&str>,
+    num: u16,
 ) -> Result<Vec<schema::Record>, Box<dyn std::error::Error>> {
     let query = format!(
         "query {{
-            projects(first: 200) {{
+            projects(first: {num}) {{
                 {fields}
             }}
         }}",
-        fields = fields.join("\n")
+        fields = fields.join("\n"),
+        num = num
     );
 
     let mut params = HashMap::new();
