@@ -1,5 +1,4 @@
 use clap::{value_t, App, Arg};
-use polars::prelude::{CsvReader, DataType, Field, Schema, SerReader};
 
 // "id",
 // "projectId",
@@ -15,6 +14,7 @@ use polars::prelude::{CsvReader, DataType, Field, Schema, SerReader};
 // "active",
 // "paused",
 
+mod dataframes;
 mod projects;
 
 #[tokio::main]
@@ -39,26 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Fetching {} project records and writing to {}", &num, &path);
     projects::write_csv(&path, num).await?;
-
-    let schema = Schema::new(vec![
-        Field::new("id", DataType::Utf8),
-        Field::new("projectId", DataType::UInt32),
-        Field::new("name", DataType::Utf8),
-        Field::new("artistName", DataType::Utf8),
-        Field::new("curationStatus", DataType::Utf8),
-        Field::new("invocations", DataType::UInt32),
-        Field::new("maxInvocations", DataType::UInt32),
-        Field::new("dynamic", DataType::Boolean),
-        Field::new("scriptJSON", DataType::Utf8),
-        Field::new("website", DataType::Utf8),
-        Field::new("license", DataType::Utf8),
-        Field::new("active", DataType::Boolean),
-        Field::new("paused", DataType::Boolean),
-    ]);
-    let df = CsvReader::from_path(&path)?
-        .with_schema(&schema)
-        .has_header(true)
-        .finish()?;
+    let df = dataframes::get_projects_df(&path).await?;
 
     println!("{:?}", df);
     Ok(())

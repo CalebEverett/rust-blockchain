@@ -9,4 +9,15 @@
 * [Developer Documentation](https://ethereum.org/en/developers/docs/)
 
 ### Solana
-* * [Developer Documentation](https://docs.solana.com/developing/programming-model/overview)
+* [Developer Documentation](https://docs.solana.com/developing/programming-model/overview)
+
+### Progress
+1. Fetch json from graphql endpoint, parse and write to csv
+1. Read csv into dataframe
+1. Run program from command line options
+
+### TODO
+1. Fetch ethereum data asyncrhonously and write batches to csv files
+1. Read csv files asynchronously into dataframe
+1. Load data into postgres database
+1. Create graphql web api
