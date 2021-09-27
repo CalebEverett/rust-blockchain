@@ -1,26 +1,62 @@
-// use polars::df;
-// use polars::frame::DataFrame;
-// use polars::prelude::NamedFrom;
-// use polars::series::Series;
-use polars::prelude::CsvReader;
-use polars::prelude::SerReader;
+use clap::{value_t, App, Arg};
+use polars::prelude::{CsvReader, DataType, Field, Schema, SerReader};
+
+// "id",
+// "projectId",
+// "name",
+// "artistName",
+// "curationStatus",
+// "invocations",
+// "maxInvocations",
+// "dynamic",
+// "scriptJSON",
+// "website",
+// "license",
+// "active",
+// "paused",
 
 mod projects;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // let records = projects::records(2, true).await?;
+    let matches = App::new("Fetching Project Data")
+        .arg(
+            Arg::with_name("num")
+                .short("n")
+                .help("Sets number of projects to retrieve")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("path")
+                .short("p")
+                .help("Sets path to write file to")
+                .takes_value(true),
+        )
+        .get_matches();
+    let num = value_t!(matches, "num", u16).unwrap_or(200);
 
-    // let ids: Vec<Option<String>> = records.iter().map(|r| r.id.as_ref()).collect();
-    // let project_ids: Vec<u32> = records.iter().map(|r| r.project_id).collect();
-    // let df = df![
-    //     // "id" => ids,
-    //     "project_id" => project_ids
+    let path = matches.value_of("path").unwrap_or("projects.csv");
 
-    // ]?;
+    println!("Fetching {} project records and writing to {}", &num, &path);
+    projects::write_csv(&path, num).await?;
 
-    let df = CsvReader::from_path("projects.csv")?
-        .infer_schema(None)
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Utf8),
+        Field::new("projectId", DataType::UInt32),
+        Field::new("name", DataType::Utf8),
+        Field::new("artistName", DataType::Utf8),
+        Field::new("curationStatus", DataType::Utf8),
+        Field::new("invocations", DataType::UInt32),
+        Field::new("maxInvocations", DataType::UInt32),
+        Field::new("dynamic", DataType::Boolean),
+        Field::new("scriptJSON", DataType::Utf8),
+        Field::new("website", DataType::Utf8),
+        Field::new("license", DataType::Utf8),
+        Field::new("active", DataType::Boolean),
+        Field::new("paused", DataType::Boolean),
+    ]);
+    let df = CsvReader::from_path(&path)?
+        .with_schema(&schema)
         .has_header(true)
         .finish()?;
 

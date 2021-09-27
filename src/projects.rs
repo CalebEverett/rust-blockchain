@@ -1,44 +1,30 @@
 use std::collections::HashMap;
 
-pub async fn records(
-    num: u16,
-    write: bool,
-) -> Result<Vec<schema::Record>, Box<dyn std::error::Error>> {
+pub async fn write_csv(path: &str, num: u16) -> Result<(), Box<dyn std::error::Error>> {
     let fields: Vec<&str> = vec![
         "id",
         "projectId",
-        "active",
+        "name",
         "artistName",
         "curationStatus",
-        "dynamic",
         "invocations",
-        "license",
         "maxInvocations",
-        "name",
-        "paused",
+        "dynamic",
         "scriptJSON",
         "website",
+        "license",
+        "active",
+        "paused",
     ];
 
     let records = get_projects(&fields, num).await?;
-    // let deserialized: Data = serde_json::from_str(&projects).unwrap();
-    // fn deser_script_string(record: &mut Record) -> () {
-    //     record.script_json = serde_json::from_str(&record.script_json_string).unwrap();
-    // }
-
-    // projects.iter_mut().for_each(|r| deser_script_string(r));
-
-    // println!("{:?}", projects);
-    if write {
-        let mut wtr = csv::Writer::from_path("projects.csv")?;
-        wtr.write_record(&fields)?;
-        for r in &records {
-            wtr.serialize(r)?;
-        }
-        wtr.flush()?
+    let mut wtr = csv::Writer::from_path(path)?;
+    // wtr.write_record(&fields)?;
+    for r in &records {
+        wtr.serialize(r)?;
     }
-
-    Ok(records)
+    wtr.flush()?;
+    Ok(())
 }
 
 pub mod schema {
@@ -46,7 +32,7 @@ pub mod schema {
 
     #[serde_with::serde_as]
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
-    pub struct ScriptJSON {
+    struct ScriptJSON {
         #[serde(rename = "type")]
         script_type: String,
         // #[serde_as(as = "DisplayFromStr")]
@@ -67,11 +53,11 @@ pub mod schema {
     #[serde_with::serde_as]
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Record {
-        pub id: Option<String>,
+        id: Option<String>,
         #[serde(rename = "projectId")]
         #[serde_as(as = "DisplayFromStr")]
-        pub project_id: u32,
-        pub name: Option<String>,
+        project_id: u32,
+        name: Option<String>,
         #[serde(rename = "artistName")]
         artist_name: Option<String>,
         #[serde(rename = "curationStatus")]
