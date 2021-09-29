@@ -4,6 +4,7 @@
 * [The Rust Programming Language](https://doc.rust-lang.org/book/#the-rust-programming-language)
 * [Rust by Example](https://doc.rust-lang.org/stable/rust-by-example/)
 * [Cookin' with Rust](https://rust-lang-nursery.github.io/rust-cookbook/)
+* [Quicktype](https://app.quicktype.io/) - tool that writes structs for json
 
 ### Ethereum
 * [Developer Documentation](https://ethereum.org/en/developers/docs/)
