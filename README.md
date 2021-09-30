@@ -20,10 +20,8 @@
 1. Fetch json from graphql endpoint, parse and write to csv
 1. Read csv into dataframe
 1. Run program from command line options
-1. Fetch ethereum data and write batches to csv files
+1. Fetch ethereum data asynchronously and write to csv file
 
 ### TODO
-1. Fetch ethereum data asyncrhonously
-1. Read csv files asynchronously into dataframe
-1. Load data into postgres database
+1. Load data into high performance in memory column database or write queries from dataframes
 1. Create graphql web api
