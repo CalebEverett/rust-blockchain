@@ -1,4 +1,4 @@
-//! Functions for interacting with contracts and fetching logs
+//! Functions for interacting with contracts and fetching logs.
 
 use log::info;
 use std::{
@@ -10,7 +10,7 @@ use std::{
 use web3::{contract::Contract, transports::Http, types::*, Web3};
 
 /// Returns a web instance for interacting with an infura ethereum node.
-pub async fn get_web3() -> Result<Web3<Http>, Box<dyn std::error::Error>> {
+async fn get_web3() -> Result<Web3<Http>, Box<dyn std::error::Error>> {
     let url = format!(
         "https://mainnet.infura.io/v3/{}",
         env::var("WEB3_INFURA_PROJECT_ID")?
@@ -21,7 +21,7 @@ pub async fn get_web3() -> Result<Web3<Http>, Box<dyn std::error::Error>> {
 }
 
 /// Returns a contract with transport for interacting with contract on ethereum.
-pub async fn get_contract(
+async fn get_contract(
     web3: &Web3<Http>,
     address: &str,
 ) -> Result<Contract<Http>, Box<dyn std::error::Error>> {
@@ -37,7 +37,7 @@ pub async fn get_contract(
     Ok(contract)
 }
 
-/// Returns all events for a contract
+/// Returns all contract events for a block range.
 pub async fn get_events_all(
     address: &str,
     event: &str,
@@ -58,7 +58,8 @@ pub async fn get_events_all(
     Ok(())
 }
 
-pub async fn get_events<'a>(
+/// Gets event logs of an address for a block range.
+async fn get_events<'a>(
     address: Address,
     topic0: H256,
     from_block: u64,
