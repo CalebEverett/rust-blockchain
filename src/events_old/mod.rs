@@ -1,8 +1,6 @@
 use std::env;
 use std::path::PathBuf;
 
-mod contracts_schema;
-
 #[derive(Debug)]
 struct Contract {
     address: String,
@@ -25,15 +23,14 @@ impl Contract {
 pub async fn write_csv(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let infura_key = "WEB3_INFURA_PROJECT_ID";
     println!("{}", env::var(&infura_key)?);
-    // get_events(
-    //     "0x059EDD72Cd353dF5106D2B9cC5ab83a52287aC3a",
-    //     &11341538,
-    //     &11351538,
-    //     "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-    // )
-    // .await?;
+    get_events(
+        "0x059EDD72Cd353dF5106D2B9cC5ab83a52287aC3a",
+        &11341538,
+        &11351538,
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+    )
+    .await?;
 
-    get_events_web3().await?;
     let contract = Contract::new(
         String::from("0x059EDD72Cd353dF5106D2B9cC5ab83a52287aC3a"),
         11341538,
