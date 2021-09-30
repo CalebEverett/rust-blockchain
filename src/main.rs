@@ -67,10 +67,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("to_block")
-                        .long("to_block")
-                        .short("t")
-                        .help("Ending block for query")
+                    Arg::with_name("step")
+                        .long("step")
+                        .short("s")
+                        .help("Step size for block range")
                         .takes_value(true),
                 ),
         )
@@ -91,17 +91,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             events_old::write_csv(&"hello").await?;
         }
         ("events", Some(m)) => {
-            // "0x059EDD72Cd353dF5106D2B9cC5ab83a52287aC3a"
-            // 11341548, 11351548
+            // "0x059EDD72Cd353dF5106D2B9cC5ab83a52287aC3a" 11341548
+            // 0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270 11439232
             let address = m.value_of("address").unwrap();
-            let event = m.value_of("event").unwrap();
+            let event = m.value_of("event").unwrap().to_string();
             let from_block = value_t!(m, "from_block", u64)?;
-            let to_block = value_t!(m, "to_block", u64)?;
+            let step = value_t!(m, "step", u64)?;
             info!(
-                "address: {}, event: {}, from_block: {}, to_block: {}",
-                &address, &event, &from_block, &to_block
+                "address: {}, event: {}, from_block: {}, step: {}",
+                &address, &event, &from_block, &step
             );
-            events::get_events_all(address, event, from_block, to_block).await?;
+            events::get_events_all(address, event, from_block, step).await?;
         }
         _ => println!("Other command received"),
     }

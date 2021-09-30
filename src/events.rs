@@ -1,12 +1,15 @@
 //! Functions for interacting with contracts and fetching logs.
 
+use futures::future::join_all;
 use log::info;
 use std::{
+    convert::TryInto,
     env,
     fs::{create_dir_all, remove_dir_all, File},
     io::Read,
     path::{Path, PathBuf},
 };
+use tokio::task::JoinHandle;
 use web3::{contract::Contract, transports::Http, types::*, Web3};
 
 /// Returns a web instance for interacting with an infura ethereum node.
@@ -38,33 +41,46 @@ async fn get_contract(
 }
 
 /// Returns all contract events for a block range.
-pub async fn get_events_all(
+pub async fn get_events_all<'a>(
     address: &str,
-    event: &str,
+    event: String,
     from_block: u64,
-    to_block: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
+    step: u64,
+) -> Result<(), Box<dyn std::error::Error + 'a>> {
     let web3 = get_web3().await?;
     let contract = get_contract(&web3, &address).await?;
-    let topic0 = contract.abi().event(event)?.signature();
+    let topic0 = contract.abi().event(&event)?.signature();
     let address = contract.address();
-    let path = format!("./data/events/{}/{}", address, event);
-    let path = Path::new(&path);
-    if path.exists() {
-        remove_dir_all(path)?;
+    let to_block = web3.eth().block_number().await?;
+    let mut tasks: Vec<JoinHandle<Result<(), ()>>> = vec![];
+    for i in (from_block..=to_block.low_u64()).step_by(step.try_into().unwrap()) {
+        let cloned_event = event.clone();
+        let web3 = get_web3().await?;
+        let path = format!("./data/events/{}/{}", &address, &event);
+        let path = Path::new(&path);
+        if path.exists() {
+            remove_dir_all(path)?;
+        }
+        create_dir_all(path)?;
+        tasks.push(tokio::spawn(async move {
+            match get_events(&address, topic0, i, i + step, cloned_event, web3).await {
+                Ok(res) => res,
+                Err(_) => (),
+            };
+            Ok(())
+        }));
     }
-    create_dir_all(path)?;
-    get_events(address, topic0, from_block, to_block, event, web3).await?;
+    join_all(tasks).await;
     Ok(())
 }
 
 /// Gets event logs of an address for a block range.
 async fn get_events<'a>(
-    address: Address,
+    address: &Address,
     topic0: H256,
     from_block: u64,
     to_block: u64,
-    event: &str,
+    event: String,
     web3: Web3<Http>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     #[derive(serde::Serialize)]
@@ -85,7 +101,7 @@ async fn get_events<'a>(
         pub removed: Option<bool>,
     }
 
-    fn flatten_log<'a>(log: Log, event: &'a str) -> LogFlat<'a> {
+    fn flatten_log<'a>(log: Log, event: &'a str) -> LogFlat {
         LogFlat {
             address: log.address,
             event: event,
@@ -106,13 +122,13 @@ async fn get_events<'a>(
     let filter: Filter = FilterBuilder::default()
         .from_block(BlockNumber::from(from_block))
         .to_block(BlockNumber::from(to_block))
-        .address(vec![address])
+        .address(vec![*address])
         .topics(Some(vec![topic0]), None, None, None)
         .build();
     let logs: Vec<Log> = web3.eth().logs(filter).await?;
     let logs_flat: Vec<LogFlat> = logs
         .into_iter()
-        .map(|log| flatten_log(log, event))
+        .map(|log| flatten_log(log, &event))
         .collect();
     if logs_flat.is_empty() {
         info!(
@@ -121,12 +137,12 @@ async fn get_events<'a>(
         );
     } else {
         let path = format!(
-            "./data/events/{}/{}/{}_{}_{}.csv",
+            "./data/events/{}/{}/records.csv",
             address,
             event,
-            from_block,
-            to_block,
-            logs_flat.len()
+            // from_block
+            // to_block,
+            // logs_flat.len()
         );
         let mut wtr = csv::Writer::from_path(&path)?;
         for r in &logs_flat {
