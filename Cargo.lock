@@ -15,6 +15,7 @@ dependencies = [
  "hex",
  "log",
  "polars",
+ "rayon",
  "regex",
  "reqwest",
  "serde",

@@ -74,18 +74,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .takes_value(true),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("dataframes")
+                .about("Commands related reading dataframes from csv files.")
+                .subcommand(SubCommand::with_name("projects").about("Loads projects dataframe"))
+                .subcommand(
+                    SubCommand::with_name("events")
+                        .about("Loads projects dataframe")
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .short("a")
+                                .help("Contract address")
+                                .takes_value(true),
+                        )
+                        .arg(
+                            Arg::with_name("event")
+                                .long("event")
+                                .short("e")
+                                .help("Event name")
+                                .takes_value(true),
+                        ),
+                ),
+        )
         .get_matches();
     match matches.subcommand() {
         ("projects", Some(m)) => {
             let num = value_t!(m, "num", u16).unwrap_or(200);
 
-            let path = m.value_of("path").unwrap_or("projects.csv");
+            let path = m.value_of("path").unwrap_or("./data/projects.csv");
 
-            println!("Fetching {} project records and writing to {}", &num, &path);
-            projects::write_csv(&path, num).await?;
-            let df = dataframes::get_projects_df(&path).await?;
-
-            info!("{:?}", df);
+            info!("Fetching {} project records and writing to {}", &num, &path);
+            projects::write_csv(path, num).await?;
         }
         ("events_old", Some(m)) => {
             events_old::write_csv(&"hello").await?;
@@ -101,8 +121,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "address: {}, event: {}, from_block: {}, step: {}",
                 &address, &event, &from_block, &step
             );
-            events::get_events_all(address, event, from_block, step).await?;
+            events::get_events_all(address, event.clone(), from_block, step).await?;
         }
+        ("dataframes", Some(m)) => match m.subcommand() {
+            ("projects", Some(_)) => {
+                let df = dataframes::get_projects_df("./data/projects.csv").await?;
+                info!("{:?}", df.head(Some(25)));
+            }
+            ("events", Some(n)) => {
+                let address = n.value_of("address").unwrap();
+                let event = n.value_of("event").unwrap().to_string();
+                let df = dataframes::get_events_df(address, &event).await?;
+                info!("{:?}", df.head(Some(25)));
+            }
+            _ => println!("Other command received"),
+        },
         _ => println!("Other command received"),
     }
     Ok(())

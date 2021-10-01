@@ -5,7 +5,7 @@ use log::info;
 use std::{
     convert::TryInto,
     env,
-    fs::{create_dir_all, remove_dir_all, File},
+    fs::{create_dir_all, remove_dir_all, File, OpenOptions},
     io::Read,
     path::{Path, PathBuf},
 };
@@ -42,13 +42,13 @@ async fn get_contract(
 
 /// Returns all contract events for a block range.
 pub async fn get_events_all<'a>(
-    address: &str,
+    address_str: &str,
     event: String,
     from_block: u64,
     step: u64,
 ) -> Result<(), Box<dyn std::error::Error + 'a>> {
     let web3 = get_web3().await?;
-    let contract = get_contract(&web3, &address).await?;
+    let contract = get_contract(&web3, &address_str).await?;
     let topic0 = contract.abi().event(&event)?.signature();
     let address = contract.address();
     let to_block = web3.eth().block_number().await?;
@@ -56,14 +56,13 @@ pub async fn get_events_all<'a>(
     for i in (from_block..=to_block.low_u64()).step_by(step.try_into().unwrap()) {
         let cloned_event = event.clone();
         let web3 = get_web3().await?;
-        let path = format!("./data/events/{}/{}", &address, &event);
-        let path = Path::new(&path);
-        if path.exists() {
-            remove_dir_all(path)?;
+        let path_str = format!("./data/events/{}/{}", &event, &address_str);
+        if Path::new(&path_str).exists() {
+            remove_dir_all(&path_str)?;
         }
-        create_dir_all(path)?;
+        create_dir_all(&path_str)?;
         tasks.push(tokio::spawn(async move {
-            match get_events(&address, topic0, i, i + step, cloned_event, web3).await {
+            match get_events(&address, topic0, i, i + step, cloned_event, web3, path_str).await {
                 Ok(res) => res,
                 Err(_) => (),
             };
@@ -82,20 +81,21 @@ async fn get_events<'a>(
     to_block: u64,
     event: String,
     web3: Web3<Http>,
+    path_str: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
     struct LogFlat<'a> {
         pub address: H160,
         pub event: &'a str,
-        pub topic1: H256,
-        pub topic2: H256,
-        pub topic3: H256,
+        pub topic1: H160,
+        pub topic2: H160,
+        pub topic3: u64,
         pub data: Bytes,
-        pub block_hash: Option<H256>,
-        pub block_number: Option<U64>,
+        pub block_number: u64,
         pub transaction_hash: Option<H256>,
-        pub transaction_index: Option<Index>,
-        pub log_index: Option<U256>,
+        pub transaction_index: u64,
+        pub log_index: u64,
         pub transaction_log_index: Option<U256>,
         pub log_type: Option<String>,
         pub removed: Option<bool>,
@@ -105,15 +105,14 @@ async fn get_events<'a>(
         LogFlat {
             address: log.address,
             event: event,
-            topic1: log.topics[1],
-            topic2: log.topics[2],
-            topic3: log.topics[3],
+            topic1: H160::from(log.topics[1]),
+            topic2: H160::from(log.topics[2]),
+            topic3: log.topics[3].to_low_u64_be(),
             data: log.data,
-            block_hash: log.block_hash,
-            block_number: log.block_number,
+            block_number: log.block_number.unwrap().low_u64(),
             transaction_hash: log.transaction_hash,
-            transaction_index: log.transaction_index,
-            log_index: log.log_index,
+            transaction_index: log.transaction_index.unwrap().low_u64(),
+            log_index: log.log_index.unwrap().low_u64(),
             transaction_log_index: log.transaction_log_index,
             log_type: log.log_type,
             removed: log.removed,
@@ -136,20 +135,24 @@ async fn get_events<'a>(
             event, address, from_block, to_block
         );
     } else {
-        let path = format!(
-            "./data/events/{}/{}/records.csv",
-            address,
-            event,
-            // from_block
-            // to_block,
-            // logs_flat.len()
-        );
-        let mut wtr = csv::Writer::from_path(&path)?;
+        let mut path = PathBuf::from(&path_str);
+        path.push(format!(
+            "{}_{}_{}.csv",
+            from_block,
+            to_block,
+            logs_flat.len()
+        ));
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&path)
+            .unwrap();
+        let mut wtr = csv::Writer::from_writer(file);
         for r in &logs_flat {
             wtr.serialize(r)?;
         }
         wtr.flush()?;
-        info!("{}", path);
+        info!("{}", path.to_str().unwrap());
     }
     Ok(())
 }
